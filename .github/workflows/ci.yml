@@ -1,4 +1,4 @@
-name: NovaPay CI
+name: NovaPay CI/CD
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - main
 
 jobs:
+
   test:
     runs-on: ubuntu-latest
 
@@ -28,3 +29,25 @@ jobs:
       - name: Check application
         run: |
           python -m compileall main.py
+
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/novapay-cicd
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart novapay
+            sudo systemctl status novapay --no-pager
